@@ -105,6 +105,7 @@ jobs:
           catch {
             Write-Error "An error occurred: $_"
             exit 1
+          }
 
       - name: Commit changes
         shell: pwsh
