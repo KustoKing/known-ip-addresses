@@ -30,7 +30,7 @@ jobs:
         shell: pwsh
         run: |
           try {
-            # Step A: Use Azure CLI to get a management token (azure/login has already done 'az login' via OIDC).
+            # Step A: Use Azure CLI to get a management token
             $token = az account get-access-token `
               --resource https://management.azure.com `
               --query accessToken -o tsv
@@ -81,34 +81,39 @@ jobs:
                 }
             }
 
-            # Step E: Export to CSV in the repo
-            $csvPath = "azure-service-tags.csv"
+            # Step E: Export to CSV in the folder "cloud-ip-ranges/"
+            $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
+            # Make sure the folder exists
+            New-Item -ItemType Directory -Path "cloud-ip-ranges" -Force | Out-Null
+
             $expandedList | Export-Csv -Path $csvPath -NoTypeInformation
             Write-Host "Exported $csvPath with $(($expandedList).Count) lines."
           }
           catch {
             Write-Error "An error occurred: $_"
             exit 1
-          }
 
-        
       - name: Commit changes
         shell: pwsh
-        run: |          
+        run: |
           git config user.name "KustoKing[bot]"
           git config user.email "gianni@kustoking.com"
 
-          if (Test-Path azure-service-tags.csv) {
-            if (-not (git diff --exit-code -- azure-service-tags.csv)) {
-              Write-Host "Changes detected in azure-service-tags.csv. Committing..."
-              git add azure-service-tags.csv
-              git commit -m "ci: update azure service tags"
+          # We'll store the current date in YYYYMMDD format
+          $dateString = (Get-Date -Format "yyyyMMdd")
+
+          $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
+          if (Test-Path $csvPath) {
+            if (-not (git diff --exit-code -- $csvPath)) {
+              Write-Host "Changes detected in $csvPath. Committing..."
+              git add $csvPath
+              git commit -m "ci: update azure service tags $dateString"
               git push
             }
             else {
-              Write-Host "No changes in azure-service-tags.csv. Skipping commit."
+              Write-Host "No changes in $csvPath. Skipping commit."
             }
           }
           else {
-            Write-Host "No CSV file found, skipping commit."
+            Write-Host "No CSV file found in cloud-ip-ranges. Skipping commit."
           }
