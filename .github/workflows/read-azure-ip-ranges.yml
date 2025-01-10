@@ -30,56 +30,61 @@ jobs:
       - name: Retrieve Azure Service Tags
         shell: pwsh
         run: |
-          # 1) Install the Az PowerShell module & import it
-          Install-Module Az -Scope CurrentUser -Force
-          Import-Module Az.Accounts
+          try {
+            # 1) Install the Az PowerShell module & import it
+            Install-Module Az -Scope CurrentUser -Force -AllowClobber
+            Import-Module Az.Accounts
 
-          # If using OIDC: We can retrieve an access token by:
-          $token = (Get-AzAccessToken).Token
+            # If using OIDC: We can retrieve an access token by:
+            $token = (Get-AzAccessToken).Token
 
-          # Set your subscription, location, and API version
-          $subscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          $location       = "westeurope"
-          $apiVersion     = "2024-05-01"
+            # Set your subscription, location, and API version
+            $subscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            $location       = "westeurope"
+            $apiVersion     = "2024-05-01"
 
-          $uri = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Network/locations/$location/serviceTags?api-version=$apiVersion"
+            $uri = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Network/locations/$location/serviceTags?api-version=$apiVersion"
 
-          # Prepare headers with the Bearer token
-          $headers = @{
-              "Authorization" = "Bearer $token"
-              "Content-Type"  = "application/json"
+            # Prepare headers with the Bearer token
+            $headers = @{
+                "Authorization" = "Bearer $token"
+                "Content-Type"  = "application/json"
+            }
+
+            Write-Host "Querying Azure Service Tags from $uri ..."
+            $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
+
+            # Build a hashtable of all tags
+            $allTags = @{}
+
+            foreach ($tag in $response.values) {
+                $allTags[$tag.name] = @{
+                    Tag         = $tag.name
+                    Region      = $tag.properties.region
+                    IPAddresses = $tag.properties.addressPrefixes
+                }
+            }
+
+            # Flatten: one row per IP prefix
+            $expandedList = foreach ($key in $allTags.Keys) {
+                $tagEntry = $allTags[$key]
+                foreach ($ip in $tagEntry.IPAddresses) {
+                    [PSCustomObject]@{
+                        Tag       = $tagEntry.Tag
+                        Region    = $tagEntry.Region
+                        IPAddress = $ip
+                    }
+                }
+            }
+
+            # Export to CSV in the repository
+            $csvPath = "azure-service-tags.csv"
+            $expandedList | Export-Csv -Path $csvPath -NoTypeInformation
+            Write-Host "Exported $csvPath with $(($expandedList).Count) lines."
+          } catch {
+            Write-Error "An error occurred: $_"
+            exit 1
           }
-
-          Write-Host "Querying Azure Service Tags from $uri ..."
-          $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
-
-          # Build a hashtable of all tags
-          $allTags = @{}
-
-          foreach ($tag in $response.values) {
-              $allTags[$tag.name] = @{
-                  Tag         = $tag.name
-                  Region      = $tag.properties.region
-                  IPAddresses = $tag.properties.addressPrefixes
-              }
-          }
-
-          # Flatten: one row per IP prefix
-          $expandedList = foreach ($key in $allTags.Keys) {
-              $tagEntry = $allTags[$key]
-              foreach ($ip in $tagEntry.IPAddresses) {
-                  [PSCustomObject]@{
-                      Tag       = $tagEntry.Tag
-                      Region    = $tagEntry.Region
-                      IPAddress = $ip
-                  }
-              }
-          }
-
-          # Export to CSV in the repository
-          $csvPath = "azure-service-tags.csv"
-          $expandedList | Export-Csv -Path $csvPath -NoTypeInformation
-          Write-Host "Exported $csvPath with $(($expandedList).Count) lines."
 
       # 3) Commit changes to repo if the CSV changed
       - name: Commit changes
