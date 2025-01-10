@@ -123,19 +123,7 @@ jobs:
 
           $dateString = (Get-Date -Format "yyyyMMdd")
           $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
-
-          if (Test-Path $csvPath) {
-            # If there's an actual difference on disk, git diff sees it:
-            if (-not (git diff --exit-code -- $csvPath)) {
-              Write-Host "Changes detected in $csvPath. Committing..."
-              git add $csvPath
-              git commit -m "ci: update azure service tags $dateString"
-              git push
-            }
-            else {
-              Write-Host "No changes in $csvPath. Skipping commit."
-            }
-          }
-          else {
-            Write-Host "No CSV file found in cloud-ip-ranges. Skipping commit."
-          }
+          
+          git add $csvPath
+          git commit -m "ci: update azure service tags $dateString"
+          git push
