@@ -30,9 +30,9 @@ jobs:
       - name: Retrieve Azure Service Tags
         shell: pwsh
         run: |
-          # (Optional) You can install the Az module if not already present
-          # Install-Module Az -Scope CurrentUser -Force
-          # Import-Module Az
+          # 1) Install the Az PowerShell module & import it
+          Install-Module Az -Scope CurrentUser -Force
+          Import-Module Az.Accounts
 
           # If using OIDC: We can retrieve an access token by:
           $token = (Get-AzAccessToken).Token
