@@ -6,8 +6,8 @@ on:
   workflow_dispatch:     # Allows manual runs
 
 permissions:
-  id-token: write          # <--- REQUIRED for OIDC
-  contents: read           # <--- Typically needed to clone and commit
+  id-token: write         # <-- REQUIRED for OIDC
+  contents: write         # <-- Needed if you're committing/pushing to the repo
 
 jobs:
   update-azure-service-tags:
