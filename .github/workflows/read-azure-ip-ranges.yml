@@ -28,13 +28,13 @@ jobs:
         shell: pwsh
         run: |
           try {
-            # 1) Get a management token from Azure CLI (thanks to azure/login).
+            # 1) Get management token from Azure CLI
             $token = az account get-access-token `
               --resource https://management.azure.com `
               --query accessToken -o tsv
 
             if (-not $token) {
-              Write-Error "No token retrieved from az account get-access-token"
+              Write-Error "No token retrieved from az account get-access-token."
               exit 1
             }
 
@@ -77,10 +77,10 @@ jobs:
               }
             }
 
-            # 4) Sort the list so it has stable ordering (Tag -> Region -> IPAddress)
+            # 4) Sort by Tag, Region, IPAddress for stable ordering
             $sortedList = $expandedList | Sort-Object Tag, Region, IPAddress
 
-            # 5) Convert to CSV in memory (string)
+            # 5) Convert to CSV in memory
             $newContent = $sortedList | ConvertTo-Csv -NoTypeInformation | Out-String
 
             # 6) Compare with existing file (cloud-ip-ranges/azure-service-tags.csv)
@@ -90,11 +90,11 @@ jobs:
             if (Test-Path $csvPath) {
               $oldContent = Get-Content $csvPath -Raw
               if ($oldContent -ne $newContent) {
-                Write-Host "Detected new or changed content. Overwriting $csvPath."
+                Write-Host "Files differ. Replacing $csvPath with new content."
                 $newContent | Out-File $csvPath
               }
               else {
-                Write-Host "No changes detected. File will remain the same."
+                Write-Host "No changes detected. The repo file is already up-to-date."
               }
             }
             else {
@@ -117,7 +117,7 @@ jobs:
           $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
 
           if (Test-Path $csvPath) {
-            # If there's a difference in the actual file on disk, 'git diff' sees it
+            # If there's an actual difference on disk, git diff sees it:
             if (-not (git diff --exit-code -- $csvPath)) {
               Write-Host "Changes detected in $csvPath. Committing..."
               git add $csvPath
