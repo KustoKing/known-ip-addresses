@@ -1,62 +1,67 @@
-name: Read Azure Service Tags
+name: Update Azure Service Tags
 
 on:
   schedule:
-    - cron: "0 7 * * *"  # Runs daily at 3 AM UTC, adjust as needed
-  workflow_dispatch:     # Allows manual runs
+    - cron: "0 7 * * *"  # Runs daily at 3 AM UTC
+  workflow_dispatch:      # Allow manual runs
 
 permissions:
-  id-token: write         # <-- REQUIRED for OIDC
-  contents: write         # <-- Needed if you're committing/pushing to the repo
+  id-token: write         # Required for OIDC
+  contents: write         # Needed if we commit changes to the repo
 
 jobs:
   update-azure-service-tags:
-    runs-on: windows-latest  # So we can run PowerShell easily
+    runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      # 1) Sign in to Azure with OIDC (federated credentials)
+      # 1) OIDC login using azure/login
       - name: Azure Login with OIDC
         uses: azure/login@v1
         with:
-          # these come from your GitHub secrets
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 2) Run the PowerShell script inline to retrieve and store service tags
-      - name: Retrieve Azure Service Tags
+      # 2) Use Azure CLI to get an access token, then do the REST call in PowerShell
+      - name: Retrieve Azure Service Tags via REST
         shell: pwsh
         run: |
           try {
-            # 1) Install the Az PowerShell module & import it
-            Install-Module Az -Scope CurrentUser -Force -AllowClobber
-            Import-Module Az.Accounts
+            # Step A: Use Azure CLI to get a management token (azure/login has already done 'az login' via OIDC).
+            $token = az account get-access-token `
+              --resource https://management.azure.com `
+              --query accessToken -o tsv
 
-            # If using OIDC: We can retrieve an access token by:
-            $token = (Get-AzAccessToken).Token
+            if (-not $token) {
+              Write-Error "No token retrieved from az account get-access-token"
+              exit 1
+            }
 
-            # Set your subscription, location, and API version
+            # Step B: Construct the REST API endpoint
             $subscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
             $location       = "westeurope"
             $apiVersion     = "2024-05-01"
-
             $uri = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Network/locations/$location/serviceTags?api-version=$apiVersion"
 
-            # Prepare headers with the Bearer token
+            Write-Host "Querying Azure Service Tags from $uri ..."
+
+            # Step C: Invoke the REST method with Bearer token
             $headers = @{
                 "Authorization" = "Bearer $token"
                 "Content-Type"  = "application/json"
             }
 
-            Write-Host "Querying Azure Service Tags from $uri ..."
             $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
+            if (-not $response.values) {
+              Write-Error "No 'values' found in response. Possibly no data returned."
+              exit 1
+            }
 
-            # Build a hashtable of all tags
+            # Step D: Flatten the JSON into CSV
             $allTags = @{}
-
             foreach ($tag in $response.values) {
                 $allTags[$tag.name] = @{
                     Tag         = $tag.name
@@ -65,7 +70,6 @@ jobs:
                 }
             }
 
-            # Flatten: one row per IP prefix
             $expandedList = foreach ($key in $allTags.Keys) {
                 $tagEntry = $allTags[$key]
                 foreach ($ip in $tagEntry.IPAddresses) {
@@ -77,16 +81,16 @@ jobs:
                 }
             }
 
-            # Export to CSV in the repository
+            # Step E: Export to CSV in the repo
             $csvPath = "azure-service-tags.csv"
             $expandedList | Export-Csv -Path $csvPath -NoTypeInformation
             Write-Host "Exported $csvPath with $(($expandedList).Count) lines."
-          } catch {
+          }
+          catch {
             Write-Error "An error occurred: $_"
             exit 1
           }
 
-      # 3) Commit changes to repo if the CSV changed
       - name: Commit changes
         shell: pwsh
         run: |
