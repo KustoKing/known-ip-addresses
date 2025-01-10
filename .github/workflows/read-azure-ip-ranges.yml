@@ -2,7 +2,7 @@ name: Update Azure Service Tags
 
 on:
   schedule:
-    - cron: "0 7 * * *"  # Runs daily at 3 AM UTC
+    - cron: "0 7 * * *"  # Runs daily at 7 AM UTC
   workflow_dispatch:      # Allow manual runs
 
 permissions:
@@ -93,10 +93,10 @@ jobs:
 
       - name: Commit changes
         shell: pwsh
-        run: |
+        run: |          
           git config user.name "KustoKing[bot]"
           git config user.email "gianni@kustoking.com"
-      
+
           if (Test-Path azure-service-tags.csv) {
             if (-not (git diff --exit-code -- azure-service-tags.csv)) {
               Write-Host "Changes detected in azure-service-tags.csv. Committing..."
@@ -110,4 +110,4 @@ jobs:
           }
           else {
             Write-Host "No CSV file found, skipping commit."
-          }
+        }
