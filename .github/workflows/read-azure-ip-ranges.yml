@@ -86,15 +86,16 @@ jobs:
             # 6) Compare with existing file (cloud-ip-ranges/azure-service-tags.csv)
             $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
 
-            # Write the count of lines
-            $oldContentLines = $oldContent -split "`n" | Measure-Object -Line
-            $newContentLines = $newContent -split "`n" | Measure-Object -Line
-            Write-Host "Old content line count: $($oldContentLines.Lines)"
-            Write-Host "New content line count: $($newContentLines.Lines)"
-
             if (Test-Path $csvPath) {
                 # Read the current file's content as a single string
                 $oldContent = Get-Content $csvPath -Raw
+
+                # Write the count of lines
+                $oldContentLines = $oldContent -split "`n" | Measure-Object -Line
+                $newContentLines = $newContent -split "`n" | Measure-Object -Line
+                Write-Host "Old content line count: $($oldContentLines.Lines)"
+                Write-Host "New content line count: $($newContentLines.Lines)"
+
 
                 # Compare old content with the newly generated content
                 if ($oldContent.Trim() -ne $newContent.Trim()) {
@@ -123,7 +124,7 @@ jobs:
 
           $dateString = (Get-Date -Format "yyyyMMdd")
           $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
-          
+
           git add $csvPath
           git commit -m "ci: update azure service tags $dateString"
           git push
