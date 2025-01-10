@@ -85,14 +85,13 @@ jobs:
 
             # 6) Compare with existing file (cloud-ip-ranges/azure-service-tags.csv)
             $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
-            New-Item -ItemType Directory -Path "cloud-ip-ranges" -Force | Out-Null
 
             if (Test-Path $csvPath) {
                 # Read the current file's content as a single string
                 $oldContent = Get-Content $csvPath -Raw
 
                 # Compare old content with the newly generated content
-                if ($oldContent -ne $newContent) {
+                if ($oldContent.Trim() -ne $newContent.Trim()) {
                     Write-Host "Files differ. Replacing $csvPath with new content."
                     $newContent | Out-File $csvPath  # Overwrite the file
                 }
