@@ -2,12 +2,12 @@ name: Update Azure Service Tags
 
 on:
   schedule:
-    - cron: "0 7 * * *"  # daily at 7 AM UTC
-  workflow_dispatch:
+    - cron: "0 7 * * *"  # Runs daily at 7 AM UTC
+  workflow_dispatch:      # Allow manual runs
 
 permissions:
-  id-token: write     # Must be here, top-level
-  contents: write     # If you want to commit changes
+  id-token: write         # Required for OIDC
+  contents: write         # Needed if we commit changes to the repo
 
 jobs:
   update-azure-service-tags:
@@ -17,45 +17,98 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      # 1) OIDC login using azure/login
       - name: Azure Login with OIDC
         uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          # no 'auth-type: SERVICE_PRINCIPAL'
-          # no 'audience' 
-          # => defaults to OIDC
 
+      # 2) Use Azure CLI to get an access token, then do the REST call in PowerShell
       - name: Retrieve Azure Service Tags via REST
         shell: pwsh
         run: |
-          $token = az account get-access-token --resource https://management.azure.com --query accessToken -o tsv
-          if (-not $token) {
-            Write-Error "No token retrieved."
+          try {
+            # Step A: Use Azure CLI to get a management token (azure/login has already done 'az login' via OIDC).
+            $token = az account get-access-token `
+              --resource https://management.azure.com `
+              --query accessToken -o tsv
+
+            if (-not $token) {
+              Write-Error "No token retrieved from az account get-access-token"
+              exit 1
+            }
+
+            # Step B: Construct the REST API endpoint
+            $subscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            $location       = "westeurope"
+            $apiVersion     = "2024-05-01"
+            $uri = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Network/locations/$location/serviceTags?api-version=$apiVersion"
+
+            Write-Host "Querying Azure Service Tags from $uri ..."
+
+            # Step C: Invoke the REST method with Bearer token
+            $headers = @{
+                "Authorization" = "Bearer $token"
+                "Content-Type"  = "application/json"
+            }
+
+            $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
+            if (-not $response.values) {
+              Write-Error "No 'values' found in response. Possibly no data returned."
+              exit 1
+            }
+
+            # Step D: Flatten the JSON into CSV
+            $allTags = @{}
+            foreach ($tag in $response.values) {
+                $allTags[$tag.name] = @{
+                    Tag         = $tag.name
+                    Region      = $tag.properties.region
+                    IPAddresses = $tag.properties.addressPrefixes
+                }
+            }
+
+            $expandedList = foreach ($key in $allTags.Keys) {
+                $tagEntry = $allTags[$key]
+                foreach ($ip in $tagEntry.IPAddresses) {
+                    [PSCustomObject]@{
+                        Tag       = $tagEntry.Tag
+                        Region    = $tagEntry.Region
+                        IPAddress = $ip
+                    }
+                }
+            }
+
+            # Step E: Export to CSV in the repo
+            $csvPath = "azure-service-tags.csv"
+            $expandedList | Export-Csv -Path $csvPath -NoTypeInformation
+            Write-Host "Exported $csvPath with $(($expandedList).Count) lines."
+          }
+          catch {
+            Write-Error "An error occurred: $_"
             exit 1
           }
-          $uri = "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/providers/Microsoft.Network/locations/westeurope/serviceTags?api-version=2024-05-01"
-          $headers = @{
-            "Authorization" = "Bearer $token"
-            "Content-Type"  = "application/json"
-          }
-          $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
 
-          # Flatten results to CSV
-          $allTags = @{}
-          foreach ($tag in $response.values) {
-            $allTags[$tag.name] = @{
-              Tag         = $tag.name
-              Region      = $tag.properties.region
-              IPAddresses = $tag.properties.addressPrefixes
+        
+      - name: Commit changes
+        shell: pwsh
+        run: |          
+          git config user.name "KustoKing[bot]"
+          git config user.email "gianni@kustoking.com"
+
+          if (Test-Path azure-service-tags.csv) {
+            if (-not (git diff --exit-code -- azure-service-tags.csv)) {
+              Write-Host "Changes detected in azure-service-tags.csv. Committing..."
+              git add azure-service-tags.csv
+              git commit -m "ci: update azure service tags"
+              git push
+            }
+            else {
+              Write-Host "No changes in azure-service-tags.csv. Skipping commit."
             }
           }
-          $expandedList = foreach ($k in $allTags.Keys) {
-            $tagEntry = $allTags[$k]
-            foreach ($ip in $tagEntry.IPAddresses) {
-              [PSCustomObject]@{
-                Tag       = $tagEntry.Tag
-                Region    = $tagEntry.Region
-                IPAddress = $ip
-             
+          else {
+            Write-Host "No CSV file found, skipping commit."
+        }
