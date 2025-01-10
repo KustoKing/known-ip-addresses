@@ -96,16 +96,18 @@ jobs:
         run: |
           git config user.name "KustoKing[bot]"
           git config user.email "gianni@kustoking.com"
-
+      
           if (Test-Path azure-service-tags.csv) {
             if (-not (git diff --exit-code -- azure-service-tags.csv)) {
               Write-Host "Changes detected in azure-service-tags.csv. Committing..."
               git add azure-service-tags.csv
               git commit -m "ci: update azure service tags"
               git push
-            } else {
+            }
+            else {
               Write-Host "No changes in azure-service-tags.csv. Skipping commit."
             }
-          } else {
+          }
+          else {
             Write-Host "No CSV file found, skipping commit."
-        }
+          }
