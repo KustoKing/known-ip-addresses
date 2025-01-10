@@ -1,4 +1,5 @@
 "Tag","Region","IPAddress"
+"KustoKing","westeurope","0.0.0.0/0"
 "DataFactory.KoreaCentral","koreacentral","4.218.245.160/27"
 "DataFactory.KoreaCentral","koreacentral","20.41.64.128/25"
 "DataFactory.KoreaCentral","koreacentral","20.41.65.0/26"
