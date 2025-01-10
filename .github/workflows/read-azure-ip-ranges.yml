@@ -17,7 +17,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      # 1) OIDC login using azure/login
       - name: Azure Login with OIDC
         uses: azure/login@v1
         with:
@@ -25,12 +24,11 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 2) Use Azure CLI to get an access token, then do the REST call in PowerShell
-      - name: Retrieve Azure Service Tags via REST
+      - name: Retrieve & Compare Azure Service Tags
         shell: pwsh
         run: |
           try {
-            # Step A: Use Azure CLI to get a management token
+            # 1) Get a management token from Azure CLI (thanks to azure/login).
             $token = az account get-access-token `
               --resource https://management.azure.com `
               --query accessToken -o tsv
@@ -40,18 +38,16 @@ jobs:
               exit 1
             }
 
-            # Step B: Construct the REST API endpoint
+            # 2) Build the REST call
             $subscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
             $location       = "westeurope"
             $apiVersion     = "2024-05-01"
             $uri = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Network/locations/$location/serviceTags?api-version=$apiVersion"
 
             Write-Host "Querying Azure Service Tags from $uri ..."
-
-            # Step C: Invoke the REST method with Bearer token
             $headers = @{
-                "Authorization" = "Bearer $token"
-                "Content-Type"  = "application/json"
+              "Authorization" = "Bearer $token"
+              "Content-Type"  = "application/json"
             }
 
             $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
@@ -60,39 +56,55 @@ jobs:
               exit 1
             }
 
-            # Step D: Flatten the JSON into CSV
+            # 3) Flatten results into a PowerShell list of objects
             $allTags = @{}
             foreach ($tag in $response.values) {
-                $allTags[$tag.name] = @{
-                    Tag         = $tag.name
-                    Region      = $tag.properties.region
-                    IPAddresses = $tag.properties.addressPrefixes
-                }
+              $allTags[$tag.name] = @{
+                Tag         = $tag.name
+                Region      = $tag.properties.region
+                IPAddresses = $tag.properties.addressPrefixes
+              }
             }
 
             $expandedList = foreach ($key in $allTags.Keys) {
-                $tagEntry = $allTags[$key]
-                foreach ($ip in $tagEntry.IPAddresses) {
-                    [PSCustomObject]@{
-                        Tag       = $tagEntry.Tag
-                        Region    = $tagEntry.Region
-                        IPAddress = $ip
-                    }
+              $tagEntry = $allTags[$key]
+              foreach ($ip in $tagEntry.IPAddresses) {
+                [PSCustomObject]@{
+                  Tag       = $tagEntry.Tag
+                  Region    = $tagEntry.Region
+                  IPAddress = $ip
                 }
+              }
             }
 
-            # Step E: Export to CSV in the folder "cloud-ip-ranges/"
+            # 4) Sort the list so it has stable ordering (Tag -> Region -> IPAddress)
+            $sortedList = $expandedList | Sort-Object Tag, Region, IPAddress
+
+            # 5) Convert to CSV in memory (string)
+            $newContent = $sortedList | ConvertTo-Csv -NoTypeInformation | Out-String
+
+            # 6) Compare with existing file (cloud-ip-ranges/azure-service-tags.csv)
             $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
-            # Make sure the folder exists
             New-Item -ItemType Directory -Path "cloud-ip-ranges" -Force | Out-Null
 
-            $expandedList | Export-Csv -Path $csvPath -NoTypeInformation
-            Write-Host "Exported $csvPath with $(($expandedList).Count) lines."
+            if (Test-Path $csvPath) {
+              $oldContent = Get-Content $csvPath -Raw
+              if ($oldContent -ne $newContent) {
+                Write-Host "Detected new or changed content. Overwriting $csvPath."
+                $newContent | Out-File $csvPath
+              }
+              else {
+                Write-Host "No changes detected. File will remain the same."
+              }
+            }
+            else {
+              Write-Host "$csvPath does not exist. Creating a new file."
+              $newContent | Out-File $csvPath
+            }
           }
           catch {
             Write-Error "An error occurred: $_"
             exit 1
-          }
 
       - name: Commit changes
         shell: pwsh
@@ -100,11 +112,11 @@ jobs:
           git config user.name "KustoKing[bot]"
           git config user.email "gianni@kustoking.com"
 
-          # We'll store the current date in YYYYMMDD format
           $dateString = (Get-Date -Format "yyyyMMdd")
-
           $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
+
           if (Test-Path $csvPath) {
+            # If there's a difference in the actual file on disk, 'git diff' sees it
             if (-not (git diff --exit-code -- $csvPath)) {
               Write-Host "Changes detected in $csvPath. Committing..."
               git add $csvPath
