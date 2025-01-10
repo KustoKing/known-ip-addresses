@@ -1,0 +1,97 @@
+name: Read Azure Service Tags
+
+on:
+  schedule:
+    - cron: "0 7 * * *"  # Runs daily at 3 AM UTC, adjust as needed
+  workflow_dispatch:     # Allows manual runs
+
+jobs:
+  update-azure-service-tags:
+    runs-on: windows-latest  # So we can run PowerShell easily
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 1) Sign in to Azure with OIDC (federated credentials)
+      - name: Azure Login with OIDC
+        uses: azure/login@v1
+        with:
+          # these come from your GitHub secrets
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # 2) Run the PowerShell script inline to retrieve and store service tags
+      - name: Retrieve Azure Service Tags
+        shell: pwsh
+        run: |
+          # (Optional) You can install the Az module if not already present
+          # Install-Module Az -Scope CurrentUser -Force
+          # Import-Module Az
+
+          # If using OIDC: We can retrieve an access token by:
+          $token = (Get-AzAccessToken).Token
+
+          # Set your subscription, location, and API version
+          $subscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          $location       = "westeurope"
+          $apiVersion     = "2024-05-01"
+
+          $uri = "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Network/locations/$location/serviceTags?api-version=$apiVersion"
+
+          # Prepare headers with the Bearer token
+          $headers = @{
+              "Authorization" = "Bearer $token"
+              "Content-Type"  = "application/json"
+          }
+
+          Write-Host "Querying Azure Service Tags from $uri ..."
+          $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
+
+          # Build a hashtable of all tags
+          $allTags = @{}
+
+          foreach ($tag in $response.values) {
+              $allTags[$tag.name] = @{
+                  Tag         = $tag.name
+                  Region      = $tag.properties.region
+                  IPAddresses = $tag.properties.addressPrefixes
+              }
+          }
+
+          # Flatten: one row per IP prefix
+          $expandedList = foreach ($key in $allTags.Keys) {
+              $tagEntry = $allTags[$key]
+              foreach ($ip in $tagEntry.IPAddresses) {
+                  [PSCustomObject]@{
+                      Tag       = $tagEntry.Tag
+                      Region    = $tagEntry.Region
+                      IPAddress = $ip
+                  }
+              }
+          }
+
+          # Export to CSV in the repository
+          $csvPath = "azure-service-tags.csv"
+          $expandedList | Export-Csv -Path $csvPath -NoTypeInformation
+          Write-Host "Exported $csvPath with $(($expandedList).Count) lines."
+
+      # 3) Commit changes to repo if the CSV changed
+      - name: Commit changes
+        shell: pwsh
+        run: |
+          git config user.name "KustoKing[bot]"
+          git config user.email "gianni@kustoking.com"
+
+          if (Test-Path azure-service-tags.csv) {
+            if (-not (git diff --exit-code -- azure-service-tags.csv)) {
+              Write-Host "Changes detected in azure-service-tags.csv. Committing..."
+              git add azure-service-tags.csv
+              git commit -m "ci: update azure service tags"
+              git push
+            } else {
+              Write-Host "No changes in azure-service-tags.csv. Skipping commit."
+            }
+          } else {
+            Write-Host "No CSV file found, skipping commit."
