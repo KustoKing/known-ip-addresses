@@ -88,18 +88,21 @@ jobs:
             New-Item -ItemType Directory -Path "cloud-ip-ranges" -Force | Out-Null
 
             if (Test-Path $csvPath) {
-              $oldContent = Get-Content $csvPath -Raw
-              if ($oldContent -ne $newContent) {
-                Write-Host "Files differ. Replacing $csvPath with new content."
-                $newContent | Out-File $csvPath
-              }
-              else {
-                Write-Host "No changes detected. The repo file is already up-to-date."
-              }
+                # Read the current file's content as a single string
+                $oldContent = Get-Content $csvPath -Raw
+
+                # Compare old content with the newly generated content
+                if ($oldContent -ne $newContent) {
+                    Write-Host "Files differ. Replacing $csvPath with new content."
+                    $newContent | Out-File $csvPath  # Overwrite the file
+                }
+                else {
+                    Write-Host "No changes detected. The repo file is already up-to-date."
+                }
             }
             else {
-              Write-Host "$csvPath does not exist. Creating a new file."
-              $newContent | Out-File $csvPath
+                Write-Host "$csvPath does not exist. Creating a new file."
+                $newContent | Out-File $csvPath  # Create the file
             }
           }
           catch {
