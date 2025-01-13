@@ -1,5 +1,4 @@
 "Tag","Region","IPAddress"
-"KustoKing","","0.0.0.0/0"
 "ActionGroup","","104.211.231.103/32"
 "ActionGroup","","104.214.165.80/30"
 "ActionGroup","","104.47.217.151/32"
@@ -72405,4 +72404,3 @@
 "WindowsVirtualDesktop","","65.52.160.218/32"
 "WindowsVirtualDesktop","","70.37.83.67/32"
 "WindowsVirtualDesktop","","70.37.99.24/32"
-
