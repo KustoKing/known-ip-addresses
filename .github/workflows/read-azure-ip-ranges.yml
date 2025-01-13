@@ -36,7 +36,7 @@ jobs:
             if (-not $token) {
               Write-Error "No token retrieved from az account get-access-token."
               exit 1
-            }
+            } 
 
             # 2) Build the REST call
             $subscriptionId = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
@@ -52,7 +52,7 @@ jobs:
 
             $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
             if (-not $response.values) {
-              Write-Error "No 'values' found in response. Possibly no data returned."
+              Write-Error "Unexpected API response: $($response | ConvertTo-Json -Depth 10)"
               exit 1
             }
 
@@ -78,7 +78,7 @@ jobs:
             }
 
             # 4) Sort by Tag, Region, IPAddress for stable ordering
-            $sortedList = $expandedList | Sort-Object Tag, Region, IPAddress
+            $sortedList = $expandedList | Sort-Object -Property Tag, Region, IPAddress -Unique
 
             # 5) Convert to CSV in memory
             $newContent = $sortedList | ConvertTo-Csv -NoTypeInformation | Out-String
@@ -87,28 +87,22 @@ jobs:
             $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
 
             if (Test-Path $csvPath) {
-                # Read the current file's content as a single string
                 $oldContent = Get-Content $csvPath -Raw
+                $oldContentNormalized = ($oldContent -replace "\r\n", "`n").Trim()
+                $newContentNormalized = ($newContent -replace "\r\n", "`n").Trim()
 
-                # Write the count of lines
-                $oldContentLines = $oldContent -split "`n" | Measure-Object -Line
-                $newContentLines = $newContent -split "`n" | Measure-Object -Line
-                Write-Host "Old content line count: $($oldContentLines.Lines)"
-                Write-Host "New content line count: $($newContentLines.Lines)"
+                Write-Host "Old content line count: $($oldContentNormalized -split "`n").Count"
+                Write-Host "New content line count: $($newContentNormalized -split "`n").Count"
 
-
-                # Compare old content with the newly generated content
-                if ($oldContent.Trim() -ne $newContent.Trim()) {
+                if ($oldContentNormalized -ne $newContentNormalized) {
                     Write-Host "Files differ. Replacing $csvPath with new content."
-                    $newContent | Out-File $csvPath  # Overwrite the file
-                }
-                else {
+                    $newContent | Set-Content -Path $csvPath -NoNewline
+                } else {
                     Write-Host "No changes detected. The repo file is already up-to-date."
                 }
-            }
-            else {
+            } else {
                 Write-Host "$csvPath does not exist. Creating a new file."
-                $newContent | Out-File $csvPath  # Create the file
+                $newContent | Set-Content -Path $csvPath -NoNewline
             }
           }
           catch {
