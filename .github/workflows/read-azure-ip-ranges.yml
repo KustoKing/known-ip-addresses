@@ -92,9 +92,6 @@ jobs:
                 $oldContentNormalized = ($oldContent -replace "\r\n", "`n").Trim()
                 $newContentNormalized = ($newContent -replace "\r\n", "`n").Trim()
 
-                Write-Host "Old content line count: $($oldContentNormalized -split "`n").Count"
-                Write-Host "New content line count: $($newContentNormalized -split "`n").Count"
-
                 if ($oldContentNormalized -ne $newContentNormalized) {
                     Write-Host "Files differ. Replacing $csvPath with new content."
                     $newContent | Set-Content -Path $csvPath -NoNewline
