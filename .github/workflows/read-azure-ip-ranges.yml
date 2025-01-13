@@ -75,7 +75,7 @@ jobs:
                   IPAddress = $ip
                 }
               }
-            )}
+            })
 
             # 4) Sort by Tag, Region, IPAddress for stable ordering
             [void]($sortedList = $expandedList | Sort-Object -Property Tag, Region, IPAddress -Unique)
