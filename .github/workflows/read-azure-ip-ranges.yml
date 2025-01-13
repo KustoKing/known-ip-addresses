@@ -50,7 +50,7 @@ jobs:
               "Content-Type"  = "application/json"
             }
 
-            $response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET
+            [void]($response = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET)
             if (-not $response.values) {
               Write-Error "Unexpected API response: $($response | ConvertTo-Json -Depth 10)"
               exit 1
@@ -66,7 +66,7 @@ jobs:
               }
             }
 
-            $expandedList = foreach ($key in $allTags.Keys) {
+            [void]($expandedList = foreach ($key in $allTags.Keys) {
               $tagEntry = $allTags[$key]
               foreach ($ip in $tagEntry.IPAddresses) {
                 [PSCustomObject]@{
@@ -75,13 +75,14 @@ jobs:
                   IPAddress = $ip
                 }
               }
-            }
+            )}
 
             # 4) Sort by Tag, Region, IPAddress for stable ordering
-            $sortedList = $expandedList | Sort-Object -Property Tag, Region, IPAddress -Unique
+            [void]($sortedList = $expandedList | Sort-Object -Property Tag, Region, IPAddress -Unique)
 
             # 5) Convert to CSV in memory
             $newContent = $sortedList | ConvertTo-Csv -NoTypeInformation | Out-String
+            [void]$newContent
 
             # 6) Compare with existing file (cloud-ip-ranges/azure-service-tags.csv)
             $csvPath = "cloud-ip-ranges/azure-service-tags.csv"
