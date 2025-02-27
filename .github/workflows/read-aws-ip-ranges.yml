@@ -1,0 +1,89 @@
+name: Update AWS Service Tags
+
+on:
+  schedule:
+    - cron: "0 9 * * *"  # Runs daily at 9 AM UTC
+  workflow_dispatch:      # Allow manual runs
+
+permissions:
+  contents: write         # Needed if we commit changes to the repo
+
+jobs:
+  update-aws-service-tags:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Retrieve & Compare AWS Service Tags
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          
+          try {
+            # 1) Download JSON data via PowerShell
+            $jsonData = Invoke-RestMethod -Uri "https://ip-ranges.amazonaws.com/ip-ranges.json"
+            
+            # 2) Construct a list of objects with the columns you want
+            $rows = @()
+            foreach ($prefix in $jsonData.prefixes) {
+                $rows += [PSCustomObject]@{
+                    IPAddress = $prefix.ip_prefix
+                    Region    = $prefix.region
+                    Service   = $prefix.service
+                    NetworkBorderGroup = $prefix.network_border_group
+                }
+            }
+            foreach ($prefix in $jsonData.ipv6_prefixes) {
+                $rows += [PSCustomObject]@{
+                    IPAddress = $prefix.ipv6_prefix
+                    Region    = $prefix.region
+                    Service   = $prefix.service
+                    NetworkBorderGroup = $prefix.network_border_group
+                }
+            }
+            
+            # 3) Sort by Service, Region, IPAddress for stable ordering
+            $sortedList = $rows | Sort-Object -Property Service, Region, IPAddress -Unique
+
+            # 4) Convert to CSV in memory
+            $newContent = $sortedList | ConvertTo-Csv -NoTypeInformation | Out-String
+            [void]$newContent
+
+            # 5) Compare with existing file (cloud-ip-ranges/aws-service-tags.csv)
+            $csvPath = "cloud-ip-ranges/aws-service-tags.csv"
+
+            if (Test-Path $csvPath) {
+                $oldContent = Get-Content $csvPath -Raw
+                $oldContentNormalized = ($oldContent -replace "\r\n", "`n").Trim()
+                $newContentNormalized = ($newContent -replace "\r\n", "`n").Trim()
+
+                if ($oldContentNormalized -ne $newContentNormalized) {
+                    Write-Host "Files differ. Replacing $csvPath with new content."
+                    $newContent | Set-Content -Path $csvPath -NoNewline
+                } else {
+                    Write-Host "No changes detected. The repo file is already up-to-date."
+                }
+            } else {
+                Write-Host "$csvPath does not exist. Creating a new file."
+                $newContent | Set-Content -Path $csvPath -NoNewline
+            }
+          }
+          catch {
+            Write-Error "An error occurred: $_"
+            exit 1
+          }
+
+      - name: Commit changes
+        shell: pwsh
+        run: |
+          git config user.name "KustoKing[bot]"
+          git config user.email "gianni@kustoking.com"
+
+          $dateString = (Get-Date -Format "yyyyMMdd")
+          $csvPath = "cloud-ip-ranges/aws-service-tags.csv"
+
+          git add $csvPath
+          git commit -m "ci: update aws service tags $dateString"
+          git push
