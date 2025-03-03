@@ -25,14 +25,17 @@ jobs:
             # 1) Download JSON data via PowerShell
             $jsonData = Invoke-RestMethod -Uri "https://api.github.com/meta"
             
-            # 2) Construct a list of objects with the columns you want
+            # 2) Construct a list of objects with the columns you want, excluding specified types
+            $excludedTypes = @("domains", "ssh_key_fingerprints", "ssh_keys", "verifiable_password_authentication")
             $rows = @()
             foreach ($key in $jsonData.PSObject.Properties.Name) {
-                foreach ($ip in $jsonData.$key) {
-                    $rows += [PSCustomObject]@{
-                        IPAddress = $ip
-                        Type      = $key
-                        CloudName = "GitHub"
+                if ($excludedTypes -notcontains $key) {
+                    foreach ($ip in $jsonData.$key) {
+                        $rows += [PSCustomObject]@{
+                            IPAddress = $ip
+                            Type      = $key
+                            CloudName = "GitHub"
+                        }
                     }
                 }
             }
