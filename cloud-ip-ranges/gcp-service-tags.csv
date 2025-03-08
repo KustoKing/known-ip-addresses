@@ -626,6 +626,8 @@
 "34.148.0.0/16","Google Cloud","us-east1"
 "34.152.72.0/21","Google Cloud","us-east1"
 "34.177.40.0/21","Google Cloud","us-east1"
+"34.183.4.0/23","Google Cloud","us-east1"
+"34.184.4.0/23","Google Cloud","us-east1"
 "34.23.0.0/16","Google Cloud","us-east1"
 "34.24.0.0/15","Google Cloud","us-east1"
 "34.26.0.0/16","Google Cloud","us-east1"
