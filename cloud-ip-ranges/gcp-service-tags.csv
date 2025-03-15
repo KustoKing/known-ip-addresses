@@ -419,6 +419,7 @@
 "34.117.0.0/16","Google Cloud","global"
 "34.120.0.0/16","Google Cloud","global"
 "34.128.128.0/18","Google Cloud","global"
+"34.13.112.0/20","Google Cloud","global"
 "34.13.72.0/21","Google Cloud","global"
 "34.144.192.0/18","Google Cloud","global"
 "34.149.0.0/16","Google Cloud","global"
