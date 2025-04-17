@@ -9284,6 +9284,7 @@
 "99.151.152.0/21","il-central-1","EC2","il-central-1"
 "99.77.163.0/24","il-central-1","EC2","il-central-1"
 "15.177.93.0/24","me-central-1","EC2","me-central-1"
+"158.252.0.0/15","me-central-1","EC2","me-central-1"
 "18.96.96.0/19","me-central-1","EC2","me-central-1"
 "2406:da00:7000::/40","me-central-1","EC2","me-central-1"
 "2406:da17::/36","me-central-1","EC2","me-central-1"
