@@ -3792,6 +3792,7 @@
 "51.226.0.0/15","eusc-de-east-1","AMAZON","eusc-de-east-1"
 "65.176.0.0/14","eusc-de-east-1","AMAZON","eusc-de-east-1"
 "83.118.240.0/21","eusc-de-east-1","AMAZON","eusc-de-east-1"
+"1.178.72.0/21","GLOBAL","AMAZON","GLOBAL"
 "103.53.48.0/22","GLOBAL","AMAZON","GLOBAL"
 "108.138.0.0/15","GLOBAL","AMAZON","GLOBAL"
 "108.156.0.0/14","GLOBAL","AMAZON","GLOBAL"
