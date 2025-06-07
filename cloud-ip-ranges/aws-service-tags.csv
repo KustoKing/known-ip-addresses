@@ -9342,6 +9342,7 @@
 "2a05:d07b:1000::/40","eu-south-2","EC2","eu-south-2"
 "2a05:d07f:1000::/40","eu-south-2","EC2","eu-south-2"
 "3.5.32.0/22","eu-south-2","EC2","eu-south-2"
+"35.44.0.0/15","eu-south-2","EC2","eu-south-2"
 "35.71.120.0/24","eu-south-2","EC2","eu-south-2"
 "51.48.0.0/15","eu-south-2","EC2","eu-south-2"
 "51.92.0.0/16","eu-south-2","EC2","eu-south-2"
