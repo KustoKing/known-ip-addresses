@@ -44,6 +44,7 @@
 "159.254.58.0/23","zscaler.net","required"
 "159.254.62.0/23","zscaler.net","required"
 "159.254.66.0/23","zscaler.net","required"
+"159.254.71.0/24","zscaler.net","required"
 "165.225.0.0/23","zscaler.net","required"
 "165.225.118.0/24","zscaler.net","required"
 "165.225.18.0/24","zscaler.net","required"
