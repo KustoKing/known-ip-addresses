@@ -1,4 +1,5 @@
 "IPAddress","CloudName","Type"
+"101.2.220.0/23","zscaler.net","required"
 "104.129.192.0/23","zscaler.net","required"
 "104.129.194.0/23","zscaler.net","required"
 "104.129.196.0/23","zscaler.net","required"
