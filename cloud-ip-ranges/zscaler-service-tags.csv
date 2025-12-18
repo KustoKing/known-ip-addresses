@@ -32,6 +32,7 @@
 "136.226.196.0/23","zscaler.net","required"
 "136.226.246.0/23","zscaler.net","required"
 "136.226.94.0/23","zscaler.net","required"
+"137.31.0.0/22","zscaler.net","required"
 "147.161.158.0/23","zscaler.net","required"
 "147.161.200.0/23","zscaler.net","required"
 "147.161.202.0/23","zscaler.net","required"
