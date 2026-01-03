@@ -7588,6 +7588,7 @@
 "2620:108:7000::/44","us-west-2","AMAZON","us-west-2"
 "2631::/48","us-west-2","AMAZON","us-west-2"
 "2631:0:1::/48","us-west-2","AMAZON","us-west-2"
+"2631:0:1800::/39","us-west-2","AMAZON","us-west-2"
 "2631:0:2::/48","us-west-2","AMAZON","us-west-2"
 "2631:1:4fc0::/48","us-west-2","AMAZON","us-west-2"
 "2631:1:4fc1::/48","us-west-2","AMAZON","us-west-2"
