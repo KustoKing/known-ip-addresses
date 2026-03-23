@@ -813,6 +813,7 @@
 "34.157.219.128/26","Google Cloud","us-south1"
 "34.157.46.0/23","Google Cloud","us-south1"
 "34.174.0.0/16","Google Cloud","us-south1"
+"8.230.96.0/19","Google Cloud","us-south1"
 "104.196.224.0/19","Google Cloud","us-west1"
 "104.198.0.0/20","Google Cloud","us-west1"
 "104.198.96.0/20","Google Cloud","us-west1"
