@@ -9860,6 +9860,7 @@
 "2001:3fc6:5::/48","eusc-de-east-1","CLOUDFRONT","eusc-de-east-1"
 "51.72.40.128/28","eusc-de-east-1","CLOUDFRONT","eusc-de-east-1"
 "51.72.40.144/28","eusc-de-east-1","CLOUDFRONT","eusc-de-east-1"
+"51.72.96.0/23","eusc-de-east-1","CLOUDFRONT","eusc-de-east-1"
 "51.74.20.0/24","eusc-de-east-1","CLOUDFRONT","eusc-de-east-1"
 "51.74.21.0/24","eusc-de-east-1","CLOUDFRONT","eusc-de-east-1"
 "51.74.22.0/24","eusc-de-east-1","CLOUDFRONT","eusc-de-east-1"
